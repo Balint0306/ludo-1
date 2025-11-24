@@ -196,12 +196,12 @@ io.on('connection', (socket) => {
     }
 
     if (room.players.length >= 4) {
-      socket.emit('error', 'Room is full');
+      socket.emit('error', 'A szoba megtelt');
       return;
     }
 
     if (room.gameState && room.gameState.gameStarted) {
-      socket.emit('error', 'Game already started');
+      socket.emit('error', 'A játék már elkezdődött');
       return;
     }
 
@@ -230,12 +230,12 @@ io.on('connection', (socket) => {
     }
 
     if (socket.id !== room.hostId) {
-      socket.emit('error', 'Only host can start game');
+      socket.emit('error', 'Csak a host indíthatja a játékot');
       return;
     }
 
     if (room.players.length < 2) {
-      socket.emit('error', 'Need at least 2 players');
+      socket.emit('error', 'Legalább 2 játékos szükséges');
       return;
     }
 
@@ -266,7 +266,7 @@ io.on('connection', (socket) => {
     }
 
     if (!gameState.canRollDice) {
-      socket.emit('error', 'Cannot roll dice now');
+      socket.emit('error', 'Most nem dobhatsz');
       return;
     }
 
@@ -291,7 +291,7 @@ io.on('connection', (socket) => {
       gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
 
       io.to(roomCode).emit('threeSixes', {
-        message: 'Three sixes in a row! Turn skipped.',
+        message: 'Három hatos egymás után! Kör átugorva.',
         gameState
       });
       return;
@@ -337,7 +337,7 @@ io.on('connection', (socket) => {
 
     // Validate and move pawn
     if (!canMovePawn(gameState, gameState.currentPlayerIndex, pawnId, gameState.diceValue)) {
-      socket.emit('error', 'Invalid move');
+      socket.emit('error', 'Érvénytelen lépés');
       return;
     }
 
@@ -393,7 +393,7 @@ io.on('connection', (socket) => {
 
           // If game was in progress, end it
           if (room.gameState && room.gameState.gameStarted) {
-            io.to(roomCode).emit('gameAborted', 'A player left the game');
+            io.to(roomCode).emit('gameAborted', 'Egy játékos kilépett a játékból');
           }
         }
       }

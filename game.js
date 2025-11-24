@@ -61,15 +61,15 @@ const elements = {
 // ========================================
 
 socket.on('connect', () => {
-    console.log('Connected to server');
+    console.log('Csatlakozva a szerverhez');
     updateConnectionStatus(true);
     myPlayerId = socket.id;
 });
 
 socket.on('disconnect', () => {
-    console.log('Disconnected from server');
+    console.log('Kapcsolat megszakadt');
     updateConnectionStatus(false);
-    showError('Connection lost. Trying to reconnect...');
+    showError('Kapcsolat megszakadt. Újracsatlakozás...');
 });
 
 socket.on('roomCreated', ({ roomCode, player }) => {
@@ -99,7 +99,7 @@ socket.on('playerJoined', ({ players }) => {
 });
 
 socket.on('playerLeft', ({ player, players }) => {
-    showError(`${player.name} left the room`);
+    showError(`${player.name} kilépett a szobából`);
     updatePlayersList(players);
     if (isHost && players.length < 2) {
         elements.startGameBtn.disabled = true;
@@ -121,11 +121,11 @@ socket.on('diceRolled', ({ diceValue, validMoves, gameState: newGameState }) => 
         updateGameUI();
 
         if (validMoves.length === 0) {
-            showStatus('No valid moves. Turn skipped.');
+            showStatus('Nincs érvényes lépés. Kör átugorva.');
             setTimeout(() => updateGameUI(), 1500);
         } else if (isMyTurn()) {
             highlightValidPawns(validMoves);
-            showStatus('Select a pawn to move');
+            showStatus('Válassz egy bábut a mozgatáshoz');
         }
     }, 600);
 });
@@ -155,7 +155,7 @@ socket.on('error', (message) => {
 
 socket.on('threeSixes', ({ message, gameState: newGameState }) => {
     gameState = newGameState;
-    showError(message);
+    showError('Három hatos egymás után! Kör átugorva.');
     setTimeout(() => {
         updateGameUI();
     }, 2000);
@@ -190,11 +190,11 @@ function updateConnectionStatus(connected) {
     if (connected) {
         elements.connectionStatus.classList.add('connected');
         elements.connectionStatus.classList.remove('disconnected');
-        statusText.textContent = 'Connected';
+        statusText.textContent = 'Csatlakozva';
     } else {
         elements.connectionStatus.classList.add('disconnected');
         elements.connectionStatus.classList.remove('connected');
-        statusText.textContent = 'Disconnected';
+        statusText.textContent = 'Kapcsolat megszakadt';
     }
 }
 
@@ -209,7 +209,7 @@ function updatePlayersList(players) {
         playerItem.className = `player-item color-${colors[index]}`;
         playerItem.innerHTML = `
             <div class="player-color-indicator"></div>
-            <span>${player.name}${player.id === myPlayerId ? ' (You)' : ''}</span>
+            <span>${player.name}${player.id === myPlayerId ? ' (Te)' : ''}</span>
         `;
         elements.playersList.appendChild(playerItem);
     });
@@ -269,72 +269,89 @@ function createBoardTiles() {
 
 function calculateTilePositions(boardSize, tileSize, padding) {
     const positions = [];
-    const sideLength = 6; // 6 tiles per side
-    const startOffset = 200; // Starting position offset
+    const gap = 3;
+    const homeSize = (boardSize - padding * 2) / 3;
+    const trackWidth = homeSize;
 
-    // Define the track path (clockwise from red start)
-    // Bottom row (going right, positions 0-5)
-    for (let i = 0; i < sideLength; i++) {
+    // Calculate base positions for the 4 arms of the cross
+    const leftEdge = padding;
+    const rightEdge = boardSize - padding - tileSize;
+    const topEdge = padding;
+    const bottomEdge = boardSize - padding - tileSize;
+    const leftTrackEdge = leftEdge + homeSize;
+    const rightTrackEdge = rightEdge - homeSize;
+    const topTrackEdge = topEdge + homeSize;
+    const bottomTrackEdge = bottomEdge - homeSize;
+
+    // RED path (bottom-left, starts at position 0)
+    // Red start position (going right from left side)
+    const redStartX = leftTrackEdge;
+    const redStartY = bottomTrackEdge;
+
+    // Position 0-5: Red's starting column (going up)
+    for (let i = 0; i < 6; i++) {
         positions.push({
-            x: startOffset + (i * (tileSize + 5)),
-            y: boardSize - padding - tileSize - 170
+            x: redStartX,
+            y: redStartY - (i * (tileSize + gap))
         });
     }
 
-    // Right column (going up, positions 6-12)
-    for (let i = 0; i < sideLength + 1; i++) {
+    // Position 6-12: Left column going up (7 tiles)
+    for (let i = 0; i < 7; i++) {
         positions.push({
-            x: boardSize - padding - tileSize - 20,
-            y: boardSize - padding - tileSize - 170 - ((i + 1) * (tileSize + 5))
+            x: leftEdge,
+            y: topTrackEdge - (i * (tileSize + gap))
         });
     }
 
-    // Top row (going right, positions 13-18)
-    for (let i = 0; i < sideLength; i++) {
+    // BLUE path starts (top-left, position 13)
+    // Position 13-18: Top row going right (6 tiles)
+    for (let i = 0; i < 6; i++) {
         positions.push({
-            x: boardSize - padding - tileSize - 20 - ((i + 1) * (tileSize + 5)),
-            y: padding + 20
+            x: leftTrackEdge + (i * (tileSize + gap)),
+            y: topEdge
         });
     }
 
-    // Top row continued (going left, positions 19-25)
-    for (let i = 0; i < sideLength + 1; i++) {
+    // Position 19-25: Blue's starting row (going right, 7 tiles)
+    for (let i = 0; i < 7; i++) {
         positions.push({
-            x: startOffset - ((i + 1) * (tileSize + 5)),
-            y: padding + 20
+            x: rightTrackEdge + (i * (tileSize + gap)),
+            y: topTrackEdge
         });
     }
 
-    // Left column (going down, positions 26-31)
-    for (let i = 0; i < sideLength; i++) {
+    // GREEN path starts (top-right, position 26)
+    // Position 26-31: Right column going down (6 tiles)
+    for (let i = 0; i < 6; i++) {
         positions.push({
-            x: padding + 20,
-            y: padding + 20 + ((i + 1) * (tileSize + 5))
+            x: rightEdge,
+            y: topTrackEdge + (i * (tileSize + gap))
         });
     }
 
-    // Left column continued (going down, positions 32-38)
-    for (let i = 0; i < sideLength + 1; i++) {
+    // Position 32-38: Green's starting column (going down, 7 tiles)
+    for (let i = 0; i < 7; i++) {
         positions.push({
-            x: padding + 20,
-            y: startOffset + (i * (tileSize + 5))
+            x: rightTrackEdge,
+            y: bottomTrackEdge + (i * (tileSize + gap))
         });
     }
 
-    // Bottom row (going right, positions 39-44)
-    for (let i = 0; i < sideLength; i++) {
+    // YELLOW path starts (bottom-right, position 39)
+    // Position 39-44: Bottom row going left (6 tiles)
+    for (let i = 0; i < 6; i++) {
         positions.push({
-            x: padding + 20 + ((i + 1) * (tileSize + 5)),
-            y: boardSize - padding - tileSize - 170
+            x: rightTrackEdge - (i * (tileSize + gap)),
+            y: bottomEdge
         });
     }
 
-    // Fill remaining positions to make 52
-    while (positions.length < 52) {
-        const lastPos = positions[positions.length - 1];
+    // Position 45-51: Yellow's starting row (going left, 7 tiles)
+    for (let i = 0; i < 7; i++) {
         positions.push({
-            x: lastPos.x + (tileSize + 5),
-            y: lastPos.y
+            x: leftTrackEdge - (i * (tileSize + gap)),
+            y: bottomTrackEdge
         });
     }
 
@@ -463,13 +480,13 @@ function updateGameUI() {
     // Update dice button
     if (isMyTurn() && gameState.canRollDice) {
         elements.rollDiceBtn.disabled = false;
-        showStatus('Your turn! Roll the dice.');
+        showStatus('A te köröd! Dobd a kockát.');
     } else if (isMyTurn() && !gameState.canRollDice) {
         elements.rollDiceBtn.disabled = true;
-        showStatus('Select a pawn to move');
+        showStatus('Válassz egy bábut a mozgatáshoz');
     } else {
         elements.rollDiceBtn.disabled = true;
-        showStatus(`Waiting for ${currentPlayer.name}...`);
+        showStatus(`Várakozás ${currentPlayer.name} játékosra...`);
     }
 }
 
@@ -495,7 +512,7 @@ function showWinner(winner) {
     const colorDot = elements.winnerInfo.querySelector('.winner-color-dot');
     const winnerName = elements.winnerInfo.querySelector('.winner-name');
 
-    colorDot.style.background = `var(--color-${winner.color})`;
+    colorDot.style.background = `var(--color - ${winner.color})`;
     winnerName.textContent = winner.name;
 
     switchScreen('gameover');
@@ -529,12 +546,12 @@ elements.joinRoomBtn.addEventListener('click', () => {
     const roomCode = elements.roomCodeInput.value.trim().toUpperCase();
 
     if (!playerName) {
-        showError('Please enter your name');
+        showError('Kérlek add meg a nevedet');
         return;
     }
 
     if (!roomCode) {
-        showError('Please enter room code');
+        showError('Kérlek add meg a szoba kódot');
         return;
     }
 
@@ -544,7 +561,7 @@ elements.joinRoomBtn.addEventListener('click', () => {
 elements.copyCodeBtn.addEventListener('click', () => {
     const roomCode = elements.roomCodeDisplay.textContent;
     navigator.clipboard.writeText(roomCode).then(() => {
-        showError('Room code copied!');
+        showError('Szoba kód másolva!');
     });
 });
 
@@ -588,6 +605,6 @@ elements.roomCodeInput.addEventListener('input', (e) => {
 });
 
 // ========================================
-// Initialize
+// Inicializálás
 // ========================================
-console.log('🎲 Ludo game client initialized');
+console.log('🎲 Ludo játék kliens inicializálva');
