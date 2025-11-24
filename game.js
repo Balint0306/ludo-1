@@ -153,6 +153,14 @@ socket.on('error', (message) => {
     showError(message);
 });
 
+socket.on('threeSixes', ({ message, gameState: newGameState }) => {
+    gameState = newGameState;
+    showError(message);
+    setTimeout(() => {
+        updateGameUI();
+    }, 2000);
+});
+
 // ========================================
 // UI Functions
 // ========================================
