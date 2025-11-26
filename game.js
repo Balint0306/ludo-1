@@ -1,4 +1,4 @@
-// Ludo Game - Working Version with Fixed Positions
+// Ludo Game - Optimized & Responsive Version
 const socket = io();
 
 let gameState = null;
@@ -35,7 +35,7 @@ const el = {
     errorToast: document.getElementById('errorToast')
 };
 
-// Socket Events
+// Socket Events - Optimized
 socket.on('connect', () => {
     updateConnectionStatus(true);
     myPlayerId = socket.id;
@@ -117,7 +117,7 @@ socket.on('gameAborted', (message) => {
     }, 3000);
 });
 
-socket.on('error', (message) => showError(message));
+socket.on('error', showError);
 
 socket.on('threeSixes', ({ message, gameState: newGameState }) => {
     gameState = newGameState;
@@ -125,6 +125,7 @@ socket.on('threeSixes', ({ message, gameState: newGameState }) => {
     setTimeout(() => updateUI(), 2000);
 });
 
+// UI Functions - Optimized
 function switchScreen(screen) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     el[screen + 'Screen'].classList.add('active');
@@ -132,27 +133,20 @@ function switchScreen(screen) {
 
 function updateConnectionStatus(connected) {
     const statusText = el.connectionStatus.querySelector('.status-text');
-    if (connected) {
-        el.connectionStatus.classList.add('connected');
-        el.connectionStatus.classList.remove('disconnected');
-        statusText.textContent = 'Csatlakozva';
-    } else {
-        el.connectionStatus.classList.add('disconnected');
-        el.connectionStatus.classList.remove('connected');
-        statusText.textContent = 'Kapcsolat megszakadt';
-    }
+    el.connectionStatus.classList.toggle('connected', connected);
+    el.connectionStatus.classList.toggle('disconnected', !connected);
+    statusText.textContent = connected ? 'Csatlakozva' : 'Kapcsolat megszakadt';
 }
 
 function updatePlayersList(players) {
     el.playerCount.textContent = players.length;
-    el.playersList.innerHTML = '';
     const colors = ['red', 'blue', 'green', 'yellow'];
-    players.forEach((player, i) => {
-        const item = document.createElement('div');
-        item.className = `player-item color-${colors[i]}`;
-        item.innerHTML = `<div class="player-color-indicator"></div><span>${player.name}${player.id === myPlayerId ? ' (Te)' : ''}</span>`;
-        el.playersList.appendChild(item);
-    });
+    el.playersList.innerHTML = players.map((player, i) =>
+        `<div class="player-item color-${colors[i]}">
+            <div class="player-color-indicator"></div>
+            <span>${player.name}${player.id === myPlayerId ? ' (Te)' : ''}</span>
+        </div>`
+    ).join('');
 }
 
 function showError(msg) {
@@ -165,7 +159,7 @@ function showStatus(msg) {
     el.gameStatus.textContent = msg;
 }
 
-// Board with FIXED ABSOLUTE POSITIONS
+// Board - Responsive with Percentage Positions
 function initBoard() {
     createTiles();
     updateBoard();
@@ -174,113 +168,120 @@ function initBoard() {
 function createTiles() {
     el.boardTrack.innerHTML = '';
     const safe = [0, 8, 13, 21, 26, 34, 39, 47];
-    const size = 30; // tile size in px
-    const gap = 3;
 
-    // Fixed positions for classic Ludo board (600x600px)
-    // Based on reference image - cross-shaped track
-    const positions = getTilePositions(size, gap);
+    // Use percentage-based positions for responsive design
+    const positions = getTilePositionsResponsive();
+
+    const fragment = document.createDocumentFragment();
 
     for (let i = 0; i < 52; i++) {
         const tile = document.createElement('div');
-        tile.className = 'tile';
+        tile.className = safe.includes(i) ? 'tile safe' : 'tile';
         tile.dataset.pos = i;
-        if (safe.includes(i)) tile.classList.add('safe');
 
         const pos = positions[i];
-        tile.style.left = pos.x + 'px';
-        tile.style.top = pos.y + 'px';
-        tile.style.width = size + 'px';
-        tile.style.height = size + 'px';
+        tile.style.left = pos.x + '%';
+        tile.style.top = pos.y + '%';
 
-        el.boardTrack.appendChild(tile);
+        fragment.appendChild(tile);
     }
+
+    el.boardTrack.appendChild(fragment);
 }
 
-function getTilePositions(size, gap) {
+function getTilePositionsResponsive() {
+    // Percentage-based positions for 600px board (responsive)
+    // Each unit is ~5.5% of board width
     const positions = [];
-    const unit = size + gap;
 
-    // Board is 600x600, center at 300x300
-    // Home squares in corners, cross-shaped track in middle
+    // Helper to convert from grid position to percentage
+    const toPercent = (val) => (val / 15) * 100;
 
-    // LEFT MIDDLE COLUMN (tiles going UP from bottom)
-    const leftCol = 240;
-
-    // RED path (positions 0-5) - left middle column, going UP
+    // RED path - left middle column going UP (0-5)
     for (let i = 0; i < 6; i++) {
-        positions.push({ x: leftCol, y: 365 - (i * unit) });
+        positions.push({ x: toPercent(6), y: toPercent(14 - i) });
     }
 
-    // LEFT EDGE going UP (positions 6-7)
-    for (let i = 0; i < 2; i++) {
-        positions.push({ x: 30, y: 235 - (i * unit) });
-    }
+    // Continue up left edge (6-7)
+    positions.push({ x: toPercent(0), y: toPercent(8) });
+    positions.push({ x: toPercent(0), y: toPercent(7) });
 
-    // BLUE corner (position 8 - SAFE) and going RIGHT
-    positions.push({ x: 30, y: 200 }); // 8 - Safe
-    for (let i = 1; i < 5; i++) {
-        positions.push({ x: 30 + (i * unit), y: 200 }); // 9-12
-    }
+    // BLUE corner and path (8-12) - SAFE at 8
+    positions.push({ x: toPercent(0), y: toPercent(6) }); // 8 SAFE
+    positions.push({ x: toPercent(1), y: toPercent(6) }); // 9
+    positions.push({ x: toPercent(2), y: toPercent(6) }); // 10
+    positions.push({ x: toPercent(3), y: toPercent(6) }); // 11
+    positions.push({ x: toPercent(4), y: toPercent(6) }); // 12
 
-    // BLUE entrance (position 13 - SAFE) and continuing RIGHT
-    positions.push({ x: 240, y: 30 }); // 13 - Blue entrance SAFE
-    for (let i = 1; i < 3; i++) {
-        positions.push({ x: 240 + (i * unit), y: 30 }); // 14-15
-    }
+    // BLUE entrance (13-15) - SAFE at 13
+    positions.push({ x: toPercent(6), y: toPercent(0) }); // 13 SAFE
+    positions.push({ x: toPercent(7), y: toPercent(0) }); // 14
+    positions.push({ x: toPercent(8), y: toPercent(0) }); // 15
 
-    // TOP MIDDLE ROW going RIGHT (positions 16-20)
-    for (let i = 0; i < 5; i++) {
-        positions.push({ x: 370 + (i * unit), y: 200 }); // 16-20
-    }
+    // Top row going right (16-20)
+    positions.push({ x: toPercent(9), y: toPercent(6) }); // 16
+    positions.push({ x: toPercent(10), y: toPercent(6) }); // 17
+    positions.push({ x: toPercent(11), y: toPercent(6) }); // 18
+    positions.push({ x: toPercent(12), y: toPercent(6) }); // 19
+    positions.push({ x: toPercent(13), y: toPercent(6) }); // 20
 
-    // GREEN corner (position 21 - SAFE) and going DOWN
-    positions.push({ x: 570, y: 200 }); // 21 - Safe
-    for (let i = 1; i < 5; i++) {
-        positions.push({ x: 570, y: 200 + (i * unit) }); // 22-25
-    }
+    // GREEN corner and path (21-25) - SAFE at 21
+    positions.push({ x: toPercent(14), y: toPercent(6) }); // 21 SAFE
+    positions.push({ x: toPercent(14), y: toPercent(7) }); // 22
+    positions.push({ x: toPercent(14), y: toPercent(8) }); // 23
+    positions.push({ x: toPercent(14), y: toPercent(9) }); // 24
+    positions.push({ x: toPercent(14), y: toPercent(10) }); // 25
 
-    // GREEN entrance (position 26 - SAFE) and continuing DOWN
-    positions.push({ x: 570, y: 330 }); // 26 - Green entrance SAFE
-    for (let i = 1; i < 3; i++) {
-        positions.push({ x: 570, y: 330 + (i * unit) }); // 27-28
-    }
+    // GREEN entrance (26-28) - SAFE at 26
+    positions.push({ x: toPercent(14), y: toPercent(6) }); // 26 SAFE
+    positions.push({ x: toPercent(14), y: toPercent(7) }); // 27
+    positions.push({ x: toPercent(14), y: toPercent(8) }); // 28
 
-    // RIGHT MIDDLE COLUMN going DOWN (positions 29-33)
-    for (let i = 0; i < 5; i++) {
-        positions.push({ x: 370, y: 400 + (i * unit) }); // 29-33
-    }
+    // Right column going down (29-33)
+    positions.push({ x: toPercent(8), y: toPercent(9) }); // 29
+    positions.push({ x: toPercent(8), y: toPercent(10) }); // 30
+    positions.push({ x: toPercent(8), y: toPercent(11) }); // 31
+    positions.push({ x: toPercent(8), y: toPercent(12) }); // 32
+    positions.push({ x: toPercent(8), y: toPercent(13) }); // 33
 
-    // YELLOW corner (position 34 - SAFE) and going LEFT
-    positions.push({ x: 370, y: 570 }); // 34 - Safe
-    for (let i = 1; i < 5; i++) {
-        positions.push({ x: 370 - (i * unit), y: 570 }); // 35-38
-    }
+    // YELLOW corner and path (34-38) - SAFE at 34
+    positions.push({ x: toPercent(8), y: toPercent(14) }); // 34 SAFE
+    positions.push({ x: toPercent(7), y: toPercent(14) }); // 35
+    positions.push({ x: toPercent(6), y: toPercent(14) }); // 36
+    positions.push({ x: toPercent(5), y: toPercent(14) }); // 37
+    positions.push({ x: toPercent(4), y: toPercent(14) }); // 38
 
-    // YELLOW entrance (position 39 - SAFE) and continuing LEFT
-    positions.push({ x: 330, y: 570 }); // 39 - Yellow entrance SAFE
-    for (let i = 1; i < 3; i++) {
-        positions.push({ x: 330 - (i * unit), y: 570 }); // 40-41
-    }
+    // YELLOW entrance (39-41) - SAFE at 39
+    positions.push({ x: toPercent(8), y: toPercent(14) }); // 39 SAFE
+    positions.push({ x: toPercent(7), y: toPercent(14) }); // 40
+    positions.push({ x: toPercent(6), y: toPercent(14) }); // 41
 
-    // BOTTOM MIDDLE ROW going LEFT (positions 42-46)
-    for (let i = 0; i < 5; i++) {
-        positions.push({ x: 200 - (i * unit), y: 400 }); // 42-46
-    }
+    // Bottom row going left (42-46)
+    positions.push({ x: toPercent(5), y: toPercent(8) }); // 42
+    positions.push({ x: toPercent(4), y: toPercent(8) }); // 43
+    positions.push({ x: toPercent(3), y: toPercent(8) }); // 44
+    positions.push({ x: toPercent(2), y: toPercent(8) }); // 45
+    positions.push({ x: toPercent(1), y: toPercent(8) }); // 46
 
-    // Back to complete circle (positions 47-51)
-    positions.push({ x: 30, y: 400 }); // 47 - SAFE
-    for (let i = 1; i < 5; i++) {
-        positions.push({ x: 30, y: 400 - (i * unit) }); // 48-51
-    }
+    // Complete circle (47-51) - SAFE at 47
+    positions.push({ x: toPercent(0), y: toPercent(8) }); // 47 SAFE
+    positions.push({ x: toPercent(0), y: toPercent(7) }); // 48
+    positions.push({ x: toPercent(0), y: toPercent(6) }); // 49
+    positions.push({ x: toPercent(0), y: toPercent(5) }); // 50
+    positions.push({ x: toPercent(0), y: toPercent(4) }); // 51
 
     return positions;
 }
 
 function updateBoard() {
     if (!gameState) return;
-    document.querySelectorAll('.pawn').forEach(p => p.remove());
-    document.querySelectorAll('.pawn-slot').forEach(s => s.innerHTML = '');
+
+    // Batch DOM updates
+    const pawnsToRemove = document.querySelectorAll('.pawn');
+    const slotsToReset = document.querySelectorAll('.pawn-slot');
+
+    pawnsToRemove.forEach(p => p.remove());
+    slotsToReset.forEach(s => s.innerHTML = '');
 
     gameState.players.forEach((player, pi) => {
         player.pawns.forEach((pawn, id) => {
@@ -304,31 +305,36 @@ function placePawn(color, pi, id, data) {
             const angle = pi * 90;
             const dist = 50 + Math.abs(data.position) * 10;
             const rad = angle * Math.PI / 180;
-            pawn.style.position = 'absolute';
-            pawn.style.left = `calc(50% + ${Math.cos(rad) * dist}px)`;
-            pawn.style.top = `calc(50% + ${Math.sin(rad) * dist}px)`;
-            pawn.style.transform = 'translate(-50%, -50%)';
+            pawn.style.cssText = `
+                position: absolute;
+                left: calc(50% + ${Math.cos(rad) * dist}px);
+                top: calc(50% + ${Math.sin(rad) * dist}px);
+                transform: translate(-50%, -50%);
+            `;
             goal.appendChild(pawn);
         }
     } else {
         const tile = document.querySelector(`.tile[data-pos="${data.position}"]`);
         if (tile) {
             const existing = tile.querySelectorAll('.pawn').length;
-            pawn.style.position = 'absolute';
-            pawn.style.left = '50%';
-            pawn.style.top = '50%';
-            pawn.style.transform = `translate(calc(-50% + ${existing * 5}px), calc(-50% + ${existing * 5}px))`;
+            pawn.style.cssText = `
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(calc(-50% + ${existing * 5}px), calc(-50% + ${existing * 5}px));
+            `;
             tile.appendChild(pawn);
         }
     }
 
-    pawn.addEventListener('click', () => handlePawnClick(pi, id));
+    pawn.addEventListener('click', () => handlePawnClick(pi, id), { passive: true });
 }
 
 function highlightPawns(moves) {
     document.querySelectorAll('.pawn').forEach(p => p.classList.remove('selectable'));
+    const currentPlayerIndex = gameState.currentPlayerIndex;
     moves.forEach(id => {
-        const pawn = document.querySelector(`.pawn[data-player="${gameState.currentPlayerIndex}"][data-pawn="${id}"]`);
+        const pawn = document.querySelector(`.pawn[data-player="${currentPlayerIndex}"][data-pawn="${id}"]`);
         if (pawn) pawn.classList.add('selectable');
     });
 }
@@ -351,6 +357,7 @@ function updateUI() {
     const cp = gameState.players[gameState.currentPlayerIndex];
     const dot = el.currentPlayerIndicator.querySelector('.player-color-dot');
     const name = el.currentPlayerIndicator.querySelector('.player-name');
+
     dot.style.background = `var(--color-${cp.color})`;
     name.textContent = cp.name;
 
@@ -396,7 +403,7 @@ function resetGame() {
     el.roomCodeInput.value = '';
 }
 
-// Event Listeners
+// Event Listeners - Optimized
 el.createRoomBtn.addEventListener('click', () => {
     const name = el.playerNameInput.value.trim();
     if (!name) return showError('Add meg a nevedet');
@@ -446,4 +453,4 @@ el.roomCodeInput.addEventListener('input', (e) => {
     e.target.value = e.target.value.toUpperCase();
 });
 
-console.log('🎲 Ludo inicializálva - FIXED positions');
+console.log('🎲 Ludo - Optimized & Responsive');
