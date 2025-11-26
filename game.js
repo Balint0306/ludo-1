@@ -232,24 +232,19 @@ function showStatus(message) {
 // Game Board Functions
 // ========================================
 
-function initializeBoard() {
-    // Create 52 tiles on the track
-    createBoardTiles();
-
-    // Place initial pawns in homes
-    updateBoard();
-}
-
 function createBoardTiles() {
     elements.boardTrack.innerHTML = '';
 
     const safeTiles = [0, 8, 13, 21, 26, 34, 39, 47];
-    const tileSize = 35;
-    const boardSize = 600;
-    const padding = 10;
 
-    // Calculate tile positions in a square track
-    const positions = calculateTilePositions(boardSize, tileSize, padding);
+    // Get current board size dynamically
+    const boardRect = elements.gameBoard.getBoundingClientRect();
+    const boardSize = Math.min(boardRect.width, boardRect.height);
+    const tileSize = Math.floor(boardSize / 15); // 15x15 grid
+    const gap = 2;
+
+    // Calculate tile positions for proper Ludo layout
+    const positions = calculateTilePositions(boardSize, tileSize, gap);
 
     for (let i = 0; i < 52; i++) {
         const tile = document.createElement('div');
@@ -262,104 +257,128 @@ function createBoardTiles() {
 
         tile.style.left = positions[i].x + 'px';
         tile.style.top = positions[i].y + 'px';
+        tile.style.width = tileSize + 'px';
+        tile.style.height = tileSize + 'px';
 
         elements.boardTrack.appendChild(tile);
     }
 }
 
-function calculateTilePositions(boardSize, tileSize, padding) {
+function calculateTilePositions(boardSize, tileSize, gap) {
     const positions = [];
-    const gap = 3;
-    const homeSize = (boardSize - padding * 2) / 3;
-    const trackWidth = homeSize;
+    const unit = tileSize + gap;
 
-    // Calculate base positions for the 4 arms of the cross
-    const leftEdge = padding;
-    const rightEdge = boardSize - padding - tileSize;
-    const topEdge = padding;
-    const bottomEdge = boardSize - padding - tileSize;
-    const leftTrackEdge = leftEdge + homeSize;
-    const rightTrackEdge = rightEdge - homeSize;
-    const topTrackEdge = topEdge + homeSize;
-    const bottomTrackEdge = bottomEdge - homeSize;
+    // Ludo board is 15x15 grid
+    // Center area is 3x3 (columns 6-8, rows 6-8)
+    // Each home takes 6x6 (corners)
+    // Track is cross-shaped around the center
 
-    // RED path (bottom-left, starts at position 0)
-    // Red start position (going right from left side)
-    const redStartX = leftTrackEdge;
-    const redStartY = bottomTrackEdge;
+    const leftColumn = 0;
+    const leftTrack = 6 * unit;
+    const rightTrack = 9 * unit;
+    const rightColumn = 15 * unit - tileSize;
 
-    // Position 0-5: Red's starting column (going up)
-    for (let i = 0; i < 6; i++) {
-        positions.push({
-            x: redStartX,
-            y: redStartY - (i * (tileSize + gap))
-        });
+    const topRow = 0;
+    const topTrack = 6 * unit;
+    const bottomTrack = 9 * unit;
+    const bottomRow = 15 * unit - tileSize;
+
+    // RED PATH (starts at position 0, bottom-left)
+    // Position 0: Red's starting tile (entrance to track)
+    positions.push({ x: leftTrack, y: bottomTrack });
+
+    // Positions 1-5: Going up along left middle track
+    for (let i = 1; i <= 5; i++) {
+        positions.push({ x: leftTrack, y: bottomTrack - (i * unit) });
     }
 
-    // Position 6-12: Left column going up (7 tiles)
-    for (let i = 0; i < 7; i++) {
-        positions.push({
-            x: leftEdge,
-            y: topTrackEdge - (i * (tileSize + gap))
-        });
+    // Positions 6-7: Continue up to corner
+    for (let i = 6; i <= 7; i++) {
+        positions.push({ x: leftColumn, y: bottomTrack - (i * unit) });
     }
 
-    // BLUE path starts (top-left, position 13)
-    // Position 13-18: Top row going right (6 tiles)
-    for (let i = 0; i < 6; i++) {
-        positions.push({
-            x: leftTrackEdge + (i * (tileSize + gap)),
-            y: topEdge
-        });
+    // BLUE PATH starts (top-left, position 8 is corner/safe)
+    // Position 8: Top-left corner (SAFE)
+    positions.push({ x: leftColumn, y: topTrack });
+
+    // Positions 9-12: Going up to top edge
+    for (let i = 1; i <= 4; i++) {
+        positions.push({ x: leftColumn, y: topTrack - (i * unit) });
     }
 
-    // Position 19-25: Blue's starting row (going right, 7 tiles)
-    for (let i = 0; i < 7; i++) {
-        positions.push({
-            x: rightTrackEdge + (i * (tileSize + gap)),
-            y: topTrackEdge
-        });
+    // Position 13: Blue's starting tile (SAFE - entrance)
+    positions.push({ x: leftTrack, y: topRow });
+
+    // Positions 14-18: Going right along top middle track
+    for (let i = 1; i <= 5; i++) {
+        positions.push({ x: leftTrack + (i * unit), y: topRow });
     }
 
-    // GREEN path starts (top-right, position 26)
-    // Position 26-31: Right column going down (6 tiles)
-    for (let i = 0; i < 6; i++) {
-        positions.push({
-            x: rightEdge,
-            y: topTrackEdge + (i * (tileSize + gap))
-        });
+    // Positions 19-20: Continue right to corner
+    for (let i = 6; i <= 7; i++) {
+        positions.push({ x: leftTrack + (i * unit), y: topTrack });
     }
 
-    // Position 32-38: Green's starting column (going down, 7 tiles)
-    for (let i = 0; i < 7; i++) {
-        positions.push({
-            x: rightTrackEdge,
-            y: bottomTrackEdge + (i * (tileSize + gap))
-        });
+    // GREEN PATH starts (top-right, position 21 is corner/safe)
+    // Position 21: Top-right corner (SAFE)
+    positions.push({ x: rightTrack, y: topTrack });
+
+    // Positions 22-25: Going right to right edge
+    for (let i = 1; i <= 4; i++) {
+        positions.push({ x: rightTrack + (i * unit), y: topTrack });
     }
 
-    // YELLOW path starts (bottom-right, position 39)
-    // Position 39-44: Bottom row going left (6 tiles)
-    for (let i = 0; i < 6; i++) {
-        positions.push({
-            x: rightTrackEdge - (i * (tileSize + gap)),
-            y: bottomEdge
-        });
+    // Position 26: Green's starting tile (SAFE - entrance)
+    positions.push({ x: rightColumn, y: topTrack });
+
+    // Positions 27-31: Going down along right middle track
+    for (let i = 1; i <= 5; i++) {
+        positions.push({ x: rightColumn, y: topTrack + (i * unit) });
     }
 
-    // Position 45-51: Yellow's starting row (going left, 7 tiles)
-    for (let i = 0; i < 7; i++) {
-        positions.push({
-            x: leftTrackEdge - (i * (tileSize + gap)),
-            y: bottomTrackEdge
-        });
+    // Positions 32-33: Continue down to corner
+    for (let i = 6; i <= 7; i++) {
+        positions.push({ x: rightTrack, y: topTrack + (i * unit) });
+    }
+
+    // YELLOW PATH starts (bottom-right, position 34 is corner/safe)
+    // Position 34: Bottom-right corner (SAFE)
+    positions.push({ x: rightTrack, y: bottomTrack });
+
+    // Positions 35-38: Going down to bottom edge
+    for (let i = 1; i <= 4; i++) {
+        positions.push({ x: rightTrack, y: bottomTrack + (i * unit) });
+    }
+
+    // Position 39: Yellow's starting tile (SAFE - entrance)
+    positions.push({ x: rightTrack, y: bottomRow });
+
+    // Positions 40-44: Going left along bottom middle track
+    for (let i = 1; i <= 5; i++) {
+        positions.push({ x: rightTrack - (i * unit), y: bottomRow });
+    }
+
+    // Positions 45-46: Continue left to complete circle
+    for (let i = 6; i <= 7; i++) {
+        positions.push({ x: rightTrack - (i * unit), y: bottomTrack });
+    }
+
+    // Position 47: Back near red start (SAFE - before red)
+    positions.push({ x: leftColumn, y: bottomTrack });
+
+    // Positions 48-51: Final tiles to complete the loop
+    for (let i = 1; i <= 4; i++) {
+        positions.push({ x: leftColumn, y: bottomTrack - ((7 + i) * unit) });
     }
 
     return positions;
 }
 
-function updateBoard() {
-    if (!gameState) return;
+function initializeBoard() {
+    // Create 52 tiles on the track
+    createBoardTiles();
+
+    // Place initial pawns in homes
 
     // Remove all pawns
     document.querySelectorAll('.pawn').forEach(p => p.remove());
@@ -425,6 +444,25 @@ function placePawn(color, playerIndex, pawnId, pawnData) {
 
     // Add click handler
     pawnElement.addEventListener('click', () => handlePawnClick(playerIndex, pawnId));
+}
+
+function updateBoard() {
+    if (!gameState) return;
+
+    // Remove all pawns
+    document.querySelectorAll('.pawn').forEach(p => p.remove());
+
+    // Reset home slots
+    document.querySelectorAll('.pawn-slot').forEach(slot => {
+        slot.innerHTML = '';
+    });
+
+    // Place pawns
+    gameState.players.forEach((player, playerIndex) => {
+        player.pawns.forEach((pawn, pawnIndex) => {
+            placePawn(player.color, playerIndex, pawnIndex, pawn);
+        });
+    });
 }
 
 function highlightValidPawns(validMoves) {
