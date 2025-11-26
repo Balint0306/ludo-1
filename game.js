@@ -1,4 +1,4 @@
-// Ludo Game - Complete Working Version
+// Ludo Game - Working Version with Fixed Positions
 const socket = io();
 
 let gameState = null;
@@ -7,7 +7,6 @@ let currentRoom = null;
 let myPlayerName = '';
 let isHost = false;
 
-// DOM Elements
 const el = {
     lobbyScreen: document.getElementById('lobbyScreen'),
     waitingScreen: document.getElementById('waitingScreen'),
@@ -38,7 +37,6 @@ const el = {
 
 // Socket Events
 socket.on('connect', () => {
-    console.log('Csatlakozva');
     updateConnectionStatus(true);
     myPlayerId = socket.id;
 });
@@ -127,7 +125,6 @@ socket.on('threeSixes', ({ message, gameState: newGameState }) => {
     setTimeout(() => updateUI(), 2000);
 });
 
-// UI Functions
 function switchScreen(screen) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     el[screen + 'Screen'].classList.add('active');
@@ -168,7 +165,7 @@ function showStatus(msg) {
     el.gameStatus.textContent = msg;
 }
 
-// Board Functions
+// Board with FIXED ABSOLUTE POSITIONS
 function initBoard() {
     createTiles();
     updateBoard();
@@ -177,51 +174,107 @@ function initBoard() {
 function createTiles() {
     el.boardTrack.innerHTML = '';
     const safe = [0, 8, 13, 21, 26, 34, 39, 47];
+    const size = 30; // tile size in px
+    const gap = 3;
 
-    // Classic Ludo positions - simplified grid
+    // Fixed positions for classic Ludo board (600x600px)
+    // Based on reference image - cross-shaped track
+    const positions = getTilePositions(size, gap);
+
     for (let i = 0; i < 52; i++) {
         const tile = document.createElement('div');
         tile.className = 'tile';
         tile.dataset.pos = i;
         if (safe.includes(i)) tile.classList.add('safe');
 
-        // Calculate position based on classic Ludo layout
-        const pos = getTilePosition(i);
-        tile.style.gridColumn = pos.col;
-        tile.style.gridRow = pos.row;
+        const pos = positions[i];
+        tile.style.left = pos.x + 'px';
+        tile.style.top = pos.y + 'px';
+        tile.style.width = size + 'px';
+        tile.style.height = size + 'px';
 
         el.boardTrack.appendChild(tile);
     }
 }
 
-function getTilePosition(i) {
-    // Ludo board: 15x15 grid, cross-shaped track
-    // Positions cycle around the board
-    const track = [
-        // RED path (bottom-left, going up)
-        { row: 9, col: 7 }, { row: 8, col: 7 }, { row: 7, col: 7 }, { row: 6, col: 7 }, { row: 5, col: 7 }, { row: 4, col: 7 },  // 0-5
-        { row: 3, col: 1 }, { row: 2, col: 1 },  // 6-7
+function getTilePositions(size, gap) {
+    const positions = [];
+    const unit = size + gap;
 
-        // BLUE corner and path (top-left, going right) - SAFE at 8
-        { row: 1, col: 1 }, { row: 1, col: 2 }, { row: 1, col: 3 }, { row: 1, col: 4 }, { row: 1, col: 5 },  // 8-12
-        { row: 1, col: 7 }, { row: 1, col: 8 }, { row: 1, col: 9 },  // 13-15 (13 is SAFE)
-        { row: 3, col: 10 }, { row: 3, col: 11 }, { row: 3, col: 12 }, { row: 3, col: 13 }, { row: 3, col: 14 },  // 16-20
+    // Board is 600x600, center at 300x300
+    // Home squares in corners, cross-shaped track in middle
 
-        // GREEN corner and path (top-right, going down) - SAFE at 21
-        { row: 1, col: 14 }, { row: 2, col: 14 }, { row: 3, col: 14 }, { row: 4, col: 14 }, { row: 5, col: 14 },  // 21-25
-        { row: 7, col: 14 }, { row: 8, col: 14 }, { row: 9, col: 14 },  // 26-28 (26 is SAFE)
-        { row: 10, col: 13 }, { row: 10, col: 12 }, { row: 10, col: 11 }, { row: 10, col: 10 }, { row: 10, col: 9 },  // 29-33
+    // LEFT MIDDLE COLUMN (tiles going UP from bottom)
+    const leftCol = 240;
 
-        // YELLOW corner and path (bottom-right, going left) - SAFE at 34
-        { row: 14, col: 14 }, { row: 14, col: 13 }, { row: 14, col: 12 }, { row: 14, col: 11 }, { row: 14, col: 10 },  // 34-38
-        { row: 14, col: 9 }, { row: 14, col: 8 }, { row: 14, col: 7 },  // 39-41 (39 is SAFE)
-        { row: 12, col: 6 }, { row: 12, col: 5 }, { row: 12, col: 4 }, { row: 12, col: 3 }, { row: 12, col: 2 },  // 42-46
+    // RED path (positions 0-5) - left middle column, going UP
+    for (let i = 0; i < 6; i++) {
+        positions.push({ x: leftCol, y: 365 - (i * unit) });
+    }
 
-        // Complete circle - SAFE at 47
-        { row: 14, col: 1 }, { row: 13, col: 1 }, { row: 12, col: 1 }, { row: 11, col: 1 }, { row: 10, col: 1 }  // 47-51
-    ];
+    // LEFT EDGE going UP (positions 6-7)
+    for (let i = 0; i < 2; i++) {
+        positions.push({ x: 30, y: 235 - (i * unit) });
+    }
 
-    return track[i] || { row: 1, col: 1 };
+    // BLUE corner (position 8 - SAFE) and going RIGHT
+    positions.push({ x: 30, y: 200 }); // 8 - Safe
+    for (let i = 1; i < 5; i++) {
+        positions.push({ x: 30 + (i * unit), y: 200 }); // 9-12
+    }
+
+    // BLUE entrance (position 13 - SAFE) and continuing RIGHT
+    positions.push({ x: 240, y: 30 }); // 13 - Blue entrance SAFE
+    for (let i = 1; i < 3; i++) {
+        positions.push({ x: 240 + (i * unit), y: 30 }); // 14-15
+    }
+
+    // TOP MIDDLE ROW going RIGHT (positions 16-20)
+    for (let i = 0; i < 5; i++) {
+        positions.push({ x: 370 + (i * unit), y: 200 }); // 16-20
+    }
+
+    // GREEN corner (position 21 - SAFE) and going DOWN
+    positions.push({ x: 570, y: 200 }); // 21 - Safe
+    for (let i = 1; i < 5; i++) {
+        positions.push({ x: 570, y: 200 + (i * unit) }); // 22-25
+    }
+
+    // GREEN entrance (position 26 - SAFE) and continuing DOWN
+    positions.push({ x: 570, y: 330 }); // 26 - Green entrance SAFE
+    for (let i = 1; i < 3; i++) {
+        positions.push({ x: 570, y: 330 + (i * unit) }); // 27-28
+    }
+
+    // RIGHT MIDDLE COLUMN going DOWN (positions 29-33)
+    for (let i = 0; i < 5; i++) {
+        positions.push({ x: 370, y: 400 + (i * unit) }); // 29-33
+    }
+
+    // YELLOW corner (position 34 - SAFE) and going LEFT
+    positions.push({ x: 370, y: 570 }); // 34 - Safe
+    for (let i = 1; i < 5; i++) {
+        positions.push({ x: 370 - (i * unit), y: 570 }); // 35-38
+    }
+
+    // YELLOW entrance (position 39 - SAFE) and continuing LEFT
+    positions.push({ x: 330, y: 570 }); // 39 - Yellow entrance SAFE
+    for (let i = 1; i < 3; i++) {
+        positions.push({ x: 330 - (i * unit), y: 570 }); // 40-41
+    }
+
+    // BOTTOM MIDDLE ROW going LEFT (positions 42-46)
+    for (let i = 0; i < 5; i++) {
+        positions.push({ x: 200 - (i * unit), y: 400 }); // 42-46
+    }
+
+    // Back to complete circle (positions 47-51)
+    positions.push({ x: 30, y: 400 }); // 47 - SAFE
+    for (let i = 1; i < 5; i++) {
+        positions.push({ x: 30, y: 400 - (i * unit) }); // 48-51
+    }
+
+    return positions;
 }
 
 function updateBoard() {
@@ -393,4 +446,4 @@ el.roomCodeInput.addEventListener('input', (e) => {
     e.target.value = e.target.value.toUpperCase();
 });
 
-console.log('🎲 Ludo initialized');
+console.log('🎲 Ludo inicializálva - FIXED positions');
